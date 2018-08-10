@@ -604,6 +604,7 @@ int market_put_limit_order(bool real, json_t **result, market_t *m, uint32_t use
     order->user_id      = user_id;
     order->price        = mpd_new(&mpd_ctx);
     order->amount       = mpd_new(&mpd_ctx);
+    order->ceiling      = NULL;
     order->taker_fee    = mpd_new(&mpd_ctx);
     order->maker_fee    = mpd_new(&mpd_ctx);
     order->left         = mpd_new(&mpd_ctx);
@@ -871,7 +872,12 @@ static int execute_market_bid_order(bool real, market_t *m, order_t *taker)
     return 0;
 }
 
-int market_put_market_order(bool real, json_t **result, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *taker_fee, const char *source)
+inline int market_put_market_order(bool real, json_t **result, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *taker_fee, const char *source)
+{
+    return market_put_stoploss_order(real, result, m, user_id, side, amount, NULL, taker_fee, source);
+}
+
+int market_put_stoploss_order(bool real, json_t **result, market_t *m, uint32_t user_id, uint32_t side, mpd_t *amount, mpd_t *ceiling, mpd_t *taker_fee, const char *source)
 {
     if (side == MARKET_ORDER_SIDE_ASK) {
         mpd_t *balance = balance_get(user_id, BALANCE_TYPE_AVAILABLE, m->stock);
@@ -936,6 +942,13 @@ int market_put_market_order(bool real, json_t **result, market_t *m, uint32_t us
     order->deal_stock   = mpd_new(&mpd_ctx);
     order->deal_money   = mpd_new(&mpd_ctx);
     order->deal_fee     = mpd_new(&mpd_ctx);
+
+    if (ceiling == NULL) {
+        order->ceiling = NULL;
+    } else {
+        order->ceiling = mpd_new(&mpd_ctx);
+        mpd_copy(order->ceiling, ceiling, &mpd_ctx);
+    }
 
     mpd_copy(order->price, mpd_zero, &mpd_ctx);
     mpd_copy(order->amount, amount, &mpd_ctx);
